@@ -1,12 +1,10 @@
 @extends('layouts.admin')
-
 @section('title', 'Kelola Akun')
 @section('page-title', 'Kelola Akun')
 @section('page-subtitle', 'Manajemen pengguna & aktivasi akun')
 
 @section('content')
 
-{{-- ── STATS ── --}}
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-label">Total Peminjam</div>
@@ -30,7 +28,6 @@
   </div>
 </div>
 
-{{-- ── ROLE TABS ── --}}
 <div class="page-tabs">
   <a href="{{ route('admin.users.index', ['role' => 'user']) }}"
      class="ptab {{ $role === 'user' ? 'active' : '' }}">
@@ -49,7 +46,6 @@
   </a>
 </div>
 
-{{-- ── SUB-TABS STATUS (hanya untuk peminjam) ── --}}
 @if($role === 'user')
 <div class="page-tabs" style="margin-top:-10px">
   <a href="{{ route('admin.users.index', ['role' => 'user']) }}"
@@ -68,7 +64,6 @@
 </div>
 @endif
 
-{{-- ── TABLE ── --}}
 <div class="table-wrap">
   <div class="table-toolbar">
     <form method="GET" action="{{ route('admin.users.index') }}" style="display:contents">
@@ -81,13 +76,25 @@
       <button type="submit" class="btn-secondary" style="height:32px;padding:0 12px;font-size:.65rem">Cari</button>
     </form>
     <div class="tb-spacer"></div>
-    @if(auth()->user()->role === 'admin')
-    <button class="btn-primary" style="height:32px;padding:0 14px;font-size:.65rem" onclick="openModal('tambah-akun')">
+    @if($role === 'petugas')
+    <button class="btn-primary" style="height:32px;padding:0 14px;font-size:.65rem" onclick="openModal('tambah-petugas')">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Tambah Akun
+      Tambah Petugas
     </button>
     @endif
   </div>
+
+  @if($role === 'user')
+  <div style="padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);font-size:.77rem;color:var(--muted);display:flex;align-items:center;gap:8px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    Akun peminjam dibuat sendiri oleh pengguna saat registrasi. Admin hanya dapat mengaktifkan, mengedit, atau menghapus akun.
+  </div>
+  @elseif($role === 'admin')
+  <div style="padding:10px 16px;background:var(--amber-pale);border-bottom:1px solid var(--amber-border);font-size:.77rem;color:var(--amber);display:flex;align-items:center;gap:8px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Daftar akun admin sistem. Akun admin tidak dapat ditambah dari halaman ini.
+  </div>
+  @endif
 
   <table>
     <thead>
@@ -135,8 +142,7 @@
         <td style="font-size:.75rem;color:var(--muted-2)">{{ $u->created_at->format('d M Y') }}</td>
         <td>
           <div class="row-actions">
-            {{-- Activate / Deactivate --}}
-            @if($role === 'user' && auth()->user()->role === 'admin')
+            @if($role === 'user')
               @if(!$u->is_active)
               <form method="POST" action="{{ route('admin.users.activate', $u) }}">@csrf
                 <button type="submit" class="action-btn success" title="Aktifkan Akun">
@@ -153,14 +159,12 @@
               @endif
             @endif
 
-            {{-- Edit --}}
             <button class="action-btn" title="Edit Akun"
               onclick="openEditModal({{ $u->id }},'{{ addslashes($u->name) }}','{{ addslashes($u->username) }}','{{ addslashes($u->email) }}','{{ addslashes($u->phone ?? '') }}','{{ addslashes($u->city ?? '') }}')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
 
-            {{-- Delete --}}
-            @if(auth()->user()->role === 'admin' && $u->id !== auth()->id())
+            @if($u->id !== auth()->id() && $u->role !== 'admin')
             <form method="POST" action="{{ route('admin.users.destroy', $u) }}">
               @csrf @method('DELETE')
               <button type="submit" class="action-btn danger" title="Hapus Akun"
@@ -204,41 +208,37 @@
   @endif
 </div>
 
-{{-- ══ MODAL TAMBAH AKUN (sistem modal custom, bukan Bootstrap) ══ --}}
-@if(auth()->user()->role === 'admin')
-<div id="modal-tambah-akun" class="modal-overlay" onclick="handleOverlayClick(event,'tambah-akun')">
+{{-- MODAL TAMBAH PETUGAS --}}
+<div id="modal-tambah-petugas" class="modal-overlay" onclick="handleOverlayClick(event,'tambah-petugas')">
   <div class="modal wide">
     <div class="modal-header">
-      <div class="modal-title">Tambah Akun Baru</div>
-      <button type="button" class="modal-close" onclick="closeModal('tambah-akun')">
+      <div class="modal-title">Tambah Akun Petugas</div>
+      <button type="button" class="modal-close" onclick="closeModal('tambah-petugas')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <form method="POST" action="{{ route('admin.users.store') }}">
       @csrf
+      <input type="hidden" name="role" value="petugas">
       <div class="modal-body">
+        <div class="modal-notice notice-blue" style="margin-bottom:14px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Akun yang dibuat di sini akan otomatis mendapat role <strong>Petugas</strong> dan langsung aktif.
+        </div>
         <div class="modal-fields">
           <div>
             <label class="m-field-label">Nama Lengkap <span style="color:var(--red)">*</span></label>
-            <input name="name" class="m-input" placeholder="Nama lengkap..." required>
+            <input name="name" class="m-input" placeholder="Nama lengkap petugas..." required>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div>
               <label class="m-field-label">Username <span style="color:var(--red)">*</span></label>
-              <input name="username" class="m-input" placeholder="Username..." required>
+              <input name="username" class="m-input" placeholder="Username unik..." required>
             </div>
             <div>
-              <label class="m-field-label">Role <span style="color:var(--red)">*</span></label>
-              <select name="role" class="m-select" required>
-                <option value="user">Peminjam</option>
-                <option value="petugas">Petugas</option>
-                <option value="admin">Admin</option>
-              </select>
+              <label class="m-field-label">Email <span style="color:var(--red)">*</span></label>
+              <input name="email" type="email" class="m-input" placeholder="email@contoh.com" required>
             </div>
-          </div>
-          <div>
-            <label class="m-field-label">Email <span style="color:var(--red)">*</span></label>
-            <input name="email" type="email" class="m-input" placeholder="Email..." required>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div>
@@ -252,27 +252,22 @@
           </div>
           <div>
             <label class="m-field-label">Password <span style="color:var(--red)">*</span></label>
-            <input name="password" type="password" class="m-input" placeholder="Min. 6 karakter..." required>
-          </div>
-          <div class="modal-notice notice-green">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-            Akun yang dibuat admin langsung berstatus <strong>Aktif</strong>.
+            <input name="password" type="password" class="m-input" placeholder="Min. 6 karakter..." required minlength="6">
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="modal-btn-cancel" onclick="closeModal('tambah-akun')">Batal</button>
+        <button type="button" class="modal-btn-cancel" onclick="closeModal('tambah-petugas')">Batal</button>
         <button type="submit" class="modal-btn-ok">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Tambah Akun
+          Tambah Petugas
         </button>
       </div>
     </form>
   </div>
 </div>
-@endif
 
-{{-- ══ MODAL EDIT AKUN ══ --}}
+{{-- MODAL EDIT AKUN --}}
 <div id="modal-edit-akun" class="modal-overlay" onclick="handleOverlayClick(event,'edit-akun')">
   <div class="modal wide">
     <div class="modal-header">
@@ -310,7 +305,9 @@
             </div>
           </div>
           <div>
-            <label class="m-field-label">Password Baru <span style="color:var(--muted-2);font-weight:400;text-transform:none;letter-spacing:0">(kosongkan jika tidak diubah)</span></label>
+            <label class="m-field-label">Password Baru
+              <span style="color:var(--muted-2);font-weight:400;text-transform:none;letter-spacing:0;font-size:.68rem">(kosongkan jika tidak diubah)</span>
+            </label>
             <input name="password" type="password" class="m-input" placeholder="Password baru...">
           </div>
         </div>
